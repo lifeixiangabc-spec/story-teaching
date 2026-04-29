@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>互动式教学故事 AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 12px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            font-size: 1.6em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 16px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e8e8e8;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            background: #fafafa;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 1.1em;
+            border-radius: 12px;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #667eea;
+        }
+
+        .output {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 16px;
+            min-height: 150px;
+            white-space: pre-wrap;
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            line-height: 1.8;
+            font-size: 0.95em;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .output.error {
+            color: #dc3545;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e0e0e0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .theme-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .theme-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .theme-card.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);
+        }
+
+        .theme-card .icon {
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+
+        .theme-card .name {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.95em;
+        }
+
+        .theme-card .desc {
+            font-size: 0.75em;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 180px);
+            min-height: 400px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 16px;
+            max-width: 85%;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            font-size: 0.95em;
+        }
+
+        .message.user {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.ai {
+            background: white;
+            color: #333;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .message .sender {
+            font-weight: 600;
+            font-size: 0.8em;
+            margin-bottom: 4px;
+            opacity: 0.7;
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input-area textarea {
+            flex: 1;
+            padding: 14px;
+            border: 2px solid #e8e8e8;
+            border-radius: 12px;
+            font-size: 16px;
+            resize: none;
+            min-height: 50px;
+            max-height: 120px;
+            font-family: inherit;
+        }
+
+        .chat-input-area textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .chat-input-area .send-btn {
+            width: 50px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4em;
+        }
+
+        .history-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .history-item:hover {
+            background: #f5f5f5;
+        }
+
+        .history-item .title {
+            flex: 1;
+            font-weight: 500;
+            color: #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .history-item .date {
+            font-size: 0.75em;
+            color: #999;
+            margin-left: 10px;
+        }
+
+        .history-item .delete-btn {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 0.9em;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .back-btn:hover {
+            opacity: 0.8;
+        }
+
+        .header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .header-bar h1 {
+            margin-bottom: 0;
+            font-size: 1.3em;
+        }
+
+        .header-bar .nav-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .header-bar .nav-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .collapse-btn {
+            background: none;
+            border: none;
+            color: #667eea;
+            font-size: 0.85em;
+            cursor: pointer;
+            padding: 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            width: 100%;
+        }
+
+        .collapse-btn::before {
+            content: '▼';
+            font-size: 0.7em;
+            transition: transform 0.2s;
+        }
+
+        .collapsed .collapse-btn::before {
+            transform: rotate(-90deg);
+        }
+
+        .collapsed .card-content {
+            display: none;
+        }
+
+        .quick-topics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .quick-topic {
+            background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);
+            border: none;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            color: #667eea;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-topic:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.2em;
+            }
+
+            .card {
+                padding: 16px;
+                border-radius: 12px;
+            }
+
+            .theme-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                padding: 14px;
+                font-size: 16px;
+            }
+
+            .btn {
+                padding: 18px;
+                font-size: 1.1em;
+            }
+
+            .chat-messages {
+                max-height: calc(100vh - 280px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="page-home" class="page active">
+            <h1>📚 教学故事 AI</h1>
+
+            <div class="card">
+                <h2>📚 选择主题开始</h2>
+                <div class="theme-grid">
+                    <div class="theme-card" onclick="selectTheme('数学', this)">
+                        <div class="icon">🔢</div>
+                        <div class="name">数学</div>
+                        <div class="desc">数字与逻辑</div>
+                    </div>
+                    <div class="theme-card" onclick="selectTheme('语文', this)">
+                        <div class="icon">📖</div>
+                        <div class="name">语文</div>
+                        <div class="desc">阅读与写作</div>
+                    </div>
+                    <div class="theme-card" onclick="selectTheme('英语', this)">
+                        <div class="icon">🌍</div>
+                        <div class="name">英语</div>
+                        <div class="desc">语言与表达</div>
+                    </div>
+                    <div class="theme-card" onclick="selectTheme('科学', this)">
+                        <div class="icon">🔬</div>
+                        <div class="name">科学</div>
+                        <div class="desc">探索与发现</div>
+                    </div>
+                    <div class="theme-card" onclick="selectTheme('历史', this)">
+                        <div class="icon">🏛️</div>
+                        <div class="name">历史</div>
+                        <div class="desc">过去与现在</div>
+                    </div>
+                    <div class="theme-card" onclick="selectTheme('自定义', this)">
+                        <div class="icon">✨</div>
+                        <div class="name">自定义</div>
+                        <div class="desc">自由创作</div>
+                    </div>
+                </div>
+                <div id="customThemeInput" class="form-group" style="display:none; margin-top: 12px;">
+                    <label>自定义主题</label>
+                    <input type="text" id="customTheme" placeholder="输入自定义主题">
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>⚙️ API 配置</h2>
+                <button class="collapse-btn" onclick="this.parentElement.classList.toggle('collapsed')"></button>
+                <div class="card-content">
+                    <div class="form-group">
+                        <label>API URL</label>
+                        <input type="text" id="apiUrl" value="https://api.deepseek.com/chat/completions">
+                    </div>
+                    <div class="form-group">
+                        <label>API Token</label>
+                        <input type="password" id="apiToken" value="sk-56907aa61adc4aa6bf44abf4166b2ccc">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>模型</label>
+                            <input type="text" id="model" value="deepseek-v4-flash">
+                        </div>
+                        <div class="form-group">
+                            <label>温度</label>
+                            <input type="number" id="temperature" value="0.8" min="0.1" max="1.0" step="0.1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>📝 故事设置</h2>
+                <div class="form-group">
+                    <label>学科/主题</label>
+                    <input type="text" id="subject" placeholder="例如：初中数学-一元二次方程">
+                    <div class="quick-topics" id="quickTopics"></div>
+                </div>
+                <div class="form-group">
+                    <label>AI 角色</label>
+                    <select id="role">
+                        <option value="数学侦探">🔍 数学侦探</option>
+                        <option value="历史探险家">🗺️ 历史探险家</option>
+                        <option value="科学探险家">🔬 科学探险家</option>
+                        <option value="英语魔法师">✨ 英语魔法师</option>
+                        <option value="故事导师">📖 故事导师</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>学习目标（选填）</label>
+                    <textarea id="goals" rows="2" placeholder="例如：
+1. 理解概念
+2. 掌握方法
+3. 应用实践"></textarea>
+                </div>
+            </div>
+
+            <button class="btn" id="generateBtn" onclick="generateStory()">
+                🚀 开始故事
+            </button>
+        </div>
+
+        <div id="page-story" class="page">
+            <div class="header-bar">
+                <button class="back-btn" onclick="goHome()">← 返回</button>
+                <h1 id="storyTitle">故事对话</h1>
+                <div class="nav-btns">
+                    <button class="nav-btn" onclick="showHistory()">📜</button>
+                    <button class="nav-btn" onclick="clearChat()">🗑️</button>
+                </div>
+            </div>
+
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input-area">
+                    <textarea id="userInput" placeholder="输入问题或继续对话..." rows="1"></textarea>
+                    <button class="btn send-btn" onclick="sendMessage()">➤</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-history" class="page">
+            <div class="header-bar">
+                <button class="back-btn" onclick="goToStory()">← 返回</button>
+                <h1>历史记录</h1>
+            </div>
+
+            <div class="card">
+                <div class="history-list" id="historyList"></div>
+                <div id="noHistory" style="text-align: center; color: #999; padding: 20px;">
+                    暂无历史记录
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTheme = '';
+        let currentSessionId = '';
+        let chatHistory = [];
+
+        const themeTopics = {
+            '数学': ['一元二次方程', '三角形面积', '分数运算', '几何证明', '函数基础'],
+            '语文': ['古诗词鉴赏', '阅读理解', '作文技巧', '文言文', '修辞手法'],
+            '英语': ['单词记忆', '语法时态', '口语对话', '阅读理解', '写作练习'],
+            '科学': ['植物生长', '物理力学', '化学反应', '天文知识', '生物细胞'],
+            '历史': ['朝代更替', '历史人物', '重大事件', '古代文明', '近代史'],
+            '自定义': []
+        };
+
+        function selectTheme(theme, element) {
+            document.querySelectorAll('.theme-card').forEach(card => card.classList.remove('selected'));
+            element.classList.add('selected');
+            currentTheme = theme;
+
+            const customInput = document.getElementById('customThemeInput');
+            const quickTopics = document.getElementById('quickTopics');
+
+            if (theme === '自定义') {
+                customInput.style.display = 'block';
+                quickTopics.innerHTML = '';
+            } else {
+                customInput.style.display = 'none';
+                quickTopics.innerHTML = themeTopics[theme].map(topic =>
+                    `<button class="quick-topic" onclick="selectTopic('${topic}')">${topic}</button>`
+                ).join('');
+            }
+        }
+
+        function selectTopic(topic) {
+            document.getElementById('subject').value = topic;
+        }
+
+        function generateStory() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiToken = document.getElementById('apiToken').value.trim();
+            const model = document.getElementById('model').value.trim() || 'deepseek-v4-flash';
+            const temperature = parseFloat(document.getElementById('temperature').value) || 0.8;
+            const subject = document.getElementById('subject').value.trim();
+            const customTheme = document.getElementById('customTheme').value.trim();
+            const topic = currentTheme === '自定义' ? customTheme : (subject || currentTheme);
+            const role = document.getElementById('role').value;
+            const goals = document.getElementById('goals').value.trim();
+
+            if (!apiUrl || !apiToken) {
+                alert('请填写完整的 API 配置！');
+                return;
+            }
+
+            if (!topic) {
+                alert('请选择或输入主题！');
+                return;
+            }
+
+            currentSessionId = Date.now().toString();
+
+            const prompt = `你是一位${role}，请为学生创作一个互动式教学故事。
+
+学科/主题：${topic}
+
+${goals ? '学习目标：\n' + goals : ''}
+
+请生成一个生动有趣的互动式教学故事，要求：
+1. 故事要有趣，吸引学生注意力
+2. 包含3-5个互动问题，让学生在思考中学习
+3. 有明确的学习总结
+4. 有延伸任务或课后实践
+
+故事开头要有吸引力，让学生会想继续互动。`;
+
+            showPage('story');
+            document.getElementById('storyTitle').textContent = topic;
+
+            chatHistory = [{
+                role: 'user',
+                content: `请以${role}的身份，给我讲一个关于"${topic}"的互动故事`
+            }];
+
+            callAI(apiUrl, apiToken, model, temperature, chatHistory, (response) => {
+                chatHistory.push({ role: 'assistant', content: response });
+                saveHistory();
+                renderMessages();
+            });
+        }
+
+        function sendMessage() {
+            const userInput = document.getElementById('userInput');
+            const message = userInput.value.trim();
+
+            if (!message) return;
+
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiToken = document.getElementById('apiToken').value.trim();
+            const model = document.getElementById('model').value.trim() || 'deepseek-v4-flash';
+            const temperature = parseFloat(document.getElementById('temperature').value) || 0.8;
+
+            chatHistory.push({ role: 'user', content: message });
+            userInput.value = '';
+            renderMessages();
+
+            const contextPrompt = `\n\n学生问了你一个问题："${message}"\n请以故事中${document.getElementById('role').value}的角色继续互动，用生动有趣的方式回答，并适当提出新的问题引导学生思考。`;
+
+            callAI(apiUrl, apiToken, model, temperature, chatHistory, (response) => {
+                chatHistory.push({ role: 'assistant', content: response });
+                saveHistory();
+                renderMessages();
+            });
+        }
+
+        function callAI(apiUrl, apiToken, model, temperature, history, callback) {
+            const btn = document.getElementById('generateBtn') || document.querySelector('.send-btn');
+            const originalText = btn ? btn.textContent : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳';
+            }
+
+            const messages = history.map(h => ({
+                role: h.role,
+                content: h.content
+            }));
+
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiToken}`
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: messages,
+                    temperature: temperature,
+                    max_tokens: 2000
+                })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error(`API 请求失败: ${res.status}`);
+                return res.json();
+            })
+            .then(data => {
+                callback(data.choices[0].message.content);
+            })
+            .catch(error => {
+                callback('抱歉，遇到错误：' + error.message);
+            })
+            .finally(() => {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+            });
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = chatHistory.map((msg, i) => `
+                <div class="message ${msg.role === 'user' ? 'user' : 'ai'}">
+                    <div class="sender">${msg.role === 'user' ? '我' : 'AI'}</div>
+                    ${msg.content}
+                </div>
+            `).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function saveHistory() {
+            const history = JSON.parse(localStorage.getItem('storyHistory') || '[]');
+            const session = {
+                id: currentSessionId,
+                title: document.getElementById('storyTitle').textContent,
+                messages: chatHistory,
+                date: new Date().toLocaleString()
+            };
+
+            const existingIndex = history.findIndex(h => h.id === currentSessionId);
+            if (existingIndex >= 0) {
+                history[existingIndex] = session;
+            } else {
+                history.unshift(session);
+            }
+
+            if (history.length > 20) history.pop();
+            localStorage.setItem('storyHistory', JSON.stringify(history));
+        }
+
+        function showHistory() {
+            showPage('history');
+            const history = JSON.parse(localStorage.getItem('storyHistory') || '[]');
+            const listEl = document.getElementById('historyList');
+            const noHistory = document.getElementById('noHistory');
+
+            if (history.length === 0) {
+                listEl.innerHTML = '';
+                noHistory.style.display = 'block';
+            } else {
+                noHistory.style.display = 'none';
+                listEl.innerHTML = history.map(h => `
+                    <div class="history-item" onclick="loadHistory('${h.id}')">
+                        <div class="title">${h.title}</div>
+                        <div class="date">${h.date}</div>
+                        <button class="delete-btn" onclick="event.stopPropagation(); deleteHistory('${h.id}')">删除</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function loadHistory(id) {
+            const history = JSON.parse(localStorage.getItem('storyHistory') || '[]');
+            const session = history.find(h => h.id === id);
+            if (session) {
+                currentSessionId = session.id;
+                chatHistory = session.messages;
+                document.getElementById('storyTitle').textContent = session.title;
+                showPage('story');
+                renderMessages();
+            }
+        }
+
+        function deleteHistory(id) {
+            let history = JSON.parse(localStorage.getItem('storyHistory') || '[]');
+            history = history.filter(h => h.id !== id);
+            localStorage.setItem('storyHistory', JSON.stringify(history));
+            showHistory();
+        }
+
+        function clearChat() {
+            if (confirm('确定要清空当前对话吗？')) {
+                chatHistory = [];
+                renderMessages();
+                localStorage.removeItem('currentSession');
+            }
+        }
+
+        function goHome() {
+            showPage('home');
+        }
+
+        function goToStory() {
+            showPage('story');
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('page-' + pageId).classList.add('active');
+        }
+
+        document.getElementById('userInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
